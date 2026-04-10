@@ -1,12 +1,642 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FIFTY SHADES OF MODI JI</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MODIJIxDTU</title>
+    <!-- Use basic, elegant styling as requested for a clean aesthetics -->
+    <style>
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background-color: #1a1a2e;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #ecf0f1;
+    overflow: hidden;
+    touch-action: none;
+}
+
+        /* Container scales based on JS window calculations */
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            overflow: hidden; /* Contains overflowing ui elements */
+        }
+
+        canvas {
+            background: linear-gradient(180deg, #16213e 0%, #0f3460 100%);
+            display: block;
+        }
+
+        /* Virtual UI layer overlays the entire game space container perfectly. */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 5;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .modal-screen {
+            background: rgba(22, 33, 62, 0.85);
+            padding: 25px;
+            max-width: 85%;
+            width: 320px;
+            border-radius: 15px;
+            backdrop-filter: blur(8px);
+            pointer-events: auto; /* Let clicks register here */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-sizing: border-box;
+        }
+
+        h1 { margin-top: 0; font-size: clamp(2rem, 8vw, 2.5rem); color: #4facfe; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
+        h2 { margin-top: 0; font-size: clamp(1.8rem, 6vw, 2.2rem); color: #e94560; }
+        p { margin: 12px 0; font-size: clamp(0.9rem, 3.5vw, 1.1rem); line-height: 1.5; }
+
+        .highlight { color: #f9ca24; font-weight: bold; }
+        .key-btn {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        /* Core Action buttons (Start / Restart) */
+        button.action-btn {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: clamp(1rem, 4vw, 1.2rem);
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        button.action-btn:hover { transform: scale(1.05) translateY(-2px); box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6); }
+        button.action-btn:active { transform: scale(0.98); }
+
+        /* HUD Typography Elements */
+        .hud-element {
+            position: absolute;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .score-display {
+            top: 15px;
+            left: 15px;
+            font-size: clamp(1.8rem, 6vw, 2.2rem);
+            color: white;
+        }
+
+        .mode-indicator {
+            bottom: 20px;
+            left: 15px;
+            font-size: clamp(0.8rem, 3vw, 1.1rem);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+
+        /* --- Clickable Floating Overlay Actions --- */
+        .overlay-act-btn {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 50%;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent; /* Remove blue highlight on mobile */
+            transition: transform 0.1s, border 0.2s, background 0.2s;
+            pointer-events: auto;
+        }
+
+        .overlay-act-btn:active {
+            transform: scale(0.9);
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Top Right controls (Pause & Fullscreen) */
+        #top-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+            pointer-events: none; /* Container clicks pass through, unless on buttons */
+        }
+
+        .icon-btn {
+            position: relative; /* Break absolute from base class */
+            width: 45px;
+            height: 45px;
+            font-size: 1.2rem;
+            color: #ecf0f1;
+        }
+
+        /* Gravity Switcher - Bottom Corner */
+        .gravity-btn {
+            bottom: 20px;
+            right: 15px;
+            width: 65px;
+            height: 65px;
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #4facfe; /* Default anti-gravity blue */
+            border-color: rgba(79, 172, 254, 0.4);
+        }
+
+    </style>
 </head>
+
 <body>
-    <img src="Screenshot 2026-04-10 213317.png" alt="Description of the image">
+
+    <div id="game-container">
+        <!-- Canvas represents physical pixels now -->
+        <canvas id="gameCanvas"></canvas>
+        
+        <audio id="bgMusic" loop>
+            <source src="main.mp3" type="audio/mpeg">
+        </audio>
+
+        <audio id="gameOverSound">
+            <source src="bg.mp3" type="audio/mpeg">
+        </audio>
+
+        <div id="ui-layer">
+            <!-- Start Screen -->
+            <div id="start-screen" class="modal-screen">
+                <h1>Anti-Gravity</h1>
+                <p><strong>Mode:</strong> <span class="highlight">Anti-Gravity</span> (Moves Up)</p>
+                <p><strong>Mobile:</strong> Tap anywhere to dive. Tap <span class="highlight bold">G</span> to switch directions.</p>
+                <button id="start-btn" class="action-btn">Start Game</button>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="game-over-screen" class="modal-screen hidden">
+                <h2>Game Over</h2>
+                <p>You scored: <span id="final-score"
+                        style="font-size: 2.2rem; font-weight: bold; color: #4facfe;">0</span></p>
+                <button id="restart-btn" class="action-btn">Play Again</button>
+            </div>
+        </div>
+
+        <!-- Overlaid Game HUD and Buttons -->
+        <!-- Game Stats -->
+        <div id="hud-score" class="hud-element score-display hidden">0</div>
+        <div id="hud-mode" class="hud-element mode-indicator hidden">Mode: Anti-Gravity</div>
+
+        <!-- Top Right Mini Buttons -->
+        <div id="top-controls" class="hidden">
+            <div id="pause-btn" class="overlay-act-btn icon-btn">⏸️</div>
+            <div id="fullscreen-btn" class="overlay-act-btn icon-btn">⛶</div>
+        </div>
+
+        <!-- Giant Bottom Right Action Button -->
+        <div id="gravity-btn" class="overlay-act-btn gravity-btn hidden">G</div>
+
+    </div>
+
+    <script>
+        /**
+         * Anti-Gravity Game: Responsive & Mobile First Upgrade
+         * Virtual Resolution Physics Loop mapping 400x600 safely onto any physical screen.
+         */
+
+        // --- HTML Element Selections ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const bgMusic = document.getElementById("bgMusic");
+        const gameOverSound = document.getElementById("gameOverSound");
+
+        // UI Modals
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const hudMode = document.getElementById('hud-mode');
+        const hudScore = document.getElementById('hud-score');
+        const finalScoreDisplay = document.getElementById('final-score');
+        
+        // HUD Overlay Buttons
+        const topControls = document.getElementById('top-controls');
+        const pauseBtn = document.getElementById('pause-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const gravityBtn = document.getElementById('gravity-btn');
+
+        // Assets
+        const birdImg = new Image();
+        birdImg.src = "Screenshot 2026-04-10 213317.png";
+        const pipeImg = new Image();
+        pipeImg.src = "friend.png";
+
+        // --- Core Scaling Architecture ---
+        // Virtual Logical Resolution Engine
+        const GAME_WIDTH = 400;
+        const GAME_HEIGHT = 600;
+
+function resizeGame() {
+    const ww = window.innerWidth;
+    const wh = window.innerHeight;
+
+    canvas.width = ww;
+    canvas.height = wh;
+
+    const container = document.getElementById('game-container');
+    container.style.width = ww + 'px';
+    container.style.height = wh + 'px';
+
+    const scaleX = ww / GAME_WIDTH;
+    const scaleY = wh / GAME_HEIGHT;
+
+    // ✅ ADD THIS FIX
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(scaleX, scaleY);
+}
+
+window.addEventListener("load", () => {
+    resizeGame();
+    window.scrollTo(0, 1);
+});
+
+function toggleGravity() {
+    isAntiGravity = !isAntiGravity;
+
+    // Add impulse depending on direction
+    if (isAntiGravity) {
+        bird.velocity = -4;
+    } else {
+        bird.velocity = 4;
+    }
+
+    updateHUDColors();
+}
+
+        window.addEventListener('resize', resizeGame);
+
+
+        // --- Core Game Variables ---
+        let animationId;            
+        let frames = 0;             
+        let score = 0;              
+        let isGameOver = false;     
+        let isGameRunning = false;  
+        let isPaused = false;
+        let isAntiGravity = true;   
+
+        // --- Physics & Tuning Mechanics (Locked to Virtual Grid sizes) ---
+        const gravityForce = 0.25;  
+        const tapVelocity = 6.5;    
+        const pipeSpeed = 3.5;      
+        const pipeSpawnRate = 100;  
+        const pipeGap = 160;        
+        const pipeWidth = 60;       
+
+        // --- Game Entities ---
+
+        const bird = {
+            x: 80,                  
+            y: GAME_HEIGHT / 2,   
+            radius: 15,             
+            velocity: 0,            
+
+            draw() {
+                ctx.drawImage(
+                    birdImg,
+                    this.x - this.radius,
+                    this.y - this.radius,
+                    this.radius * 2,
+                    this.radius * 2
+                );
+            },
+
+            update() {
+                if (isAntiGravity) {
+                    this.velocity -= gravityForce; // Move UP
+                } else {
+                    this.velocity += gravityForce; // Move DOWN
+                }
+
+                this.y += this.velocity;
+
+                // Screen boundary using Virtual GAME_HEIGHT parameter
+                if (this.y + this.radius >= GAME_HEIGHT || this.y - this.radius <= 0) {
+                    triggerGameOver();
+                }
+            },
+
+            flap() {
+                if (isAntiGravity) {
+                    this.velocity = tapVelocity; // Dive Down
+                } else {
+                    this.velocity = -tapVelocity; // Dive Up
+                }
+            },
+
+            reset() {
+                this.y = GAME_HEIGHT / 2;
+                this.velocity = 0;
+            }
+        };
+
+        const pipes = {
+            items: [], 
+
+            draw() {
+                for (let i = 0; i < this.items.length; i++) {
+                    let p = this.items[i];
+                    
+                    // TOP PIPE
+                    ctx.drawImage(
+                        pipeImg,
+                        p.x,
+                        0,
+                        pipeWidth,
+                        p.topHeight
+                    );
+
+                    // BOTTOM PIPE
+                    ctx.drawImage(
+                        pipeImg,
+                        p.x,
+                        GAME_HEIGHT - p.bottomHeight,
+                        pipeWidth,
+                        p.bottomHeight
+                    );
+                }
+            },
+
+            update() {
+                if (frames % pipeSpawnRate === 0) {
+                    let minPipeEnd = 50;
+                    let maxPipeEnd = GAME_HEIGHT - pipeGap - minPipeEnd;
+                    let randomTopHeight = Math.floor(Math.random() * (maxPipeEnd - minPipeEnd + 1) + minPipeEnd);
+
+                    this.items.push({
+                        x: GAME_WIDTH,                      
+                        topHeight: randomTopHeight,           
+                        bottomHeight: GAME_HEIGHT - pipeGap - randomTopHeight, 
+                        passed: false                         
+                    });
+                }
+
+                for (let i = 0; i < this.items.length; i++) {
+                    let p = this.items[i];
+                    p.x -= pipeSpeed;
+
+                    let hitTop = bird.x + bird.radius > p.x &&
+                        bird.x - bird.radius < p.x + pipeWidth &&
+                        bird.y - bird.radius < p.topHeight;
+
+                    let hitBottom = bird.x + bird.radius > p.x &&
+                        bird.x - bird.radius < p.x + pipeWidth &&
+                        bird.y + bird.radius > GAME_HEIGHT - p.bottomHeight;
+
+                    if (hitTop || hitBottom) {
+                        triggerGameOver();
+                    }
+
+                    if (p.x + pipeWidth < bird.x && !p.passed) {
+                        score++;
+                        hudScore.innerText = score;
+                        p.passed = true;
+                    }
+
+                    if (p.x + pipeWidth < 0) {
+                        this.items.shift();
+                        i--;
+                    }
+                }
+            },
+
+            reset() {
+                this.items = []; 
+            }
+        };
+
+        // --- Interaction Handlers ---
+function toggleGravity() {
+    isAntiGravity = !isAntiGravity;
+
+    // Add impulse depending on direction
+    if (isAntiGravity) {
+        bird.velocity = -4;
+    } else {
+        bird.velocity = 4;
+    }
+
+    updateHUDColors();
+}
+
+        function actuatePause() {
+            // Can't pause unless running
+            if(!isGameRunning || isGameOver) return; 
+
+            isPaused = !isPaused;
+            if(isPaused) {
+                pauseBtn.innerText = '▶️';
+                bgMusic.pause();
+            } else {
+                pauseBtn.innerText = '⏸️';
+                bgMusic.play();
+                gameLoop(); // Reinstates recursive flow
+            }
+        }
+
+        function handleHardwareFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Fullscreen error: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function handleInput(event) {
+            // Guard against overlay Buttons from triggering Jump
+            if (event.target.classList.contains('overlay-act-btn') || event.target.tagName === 'BUTTON') {
+                return;
+            }
+
+            // Lock native browser scroll logic during touch gameplay
+            if(event.type === 'touchstart' && isGameRunning) {
+                event.preventDefault(); 
+            }
+
+            // Lock native actions of shortcut keys
+            if (event.type === 'keydown' && (event.code === 'Space' || event.code === 'KeyG' || event.code === 'KeyP')) {
+                event.preventDefault();
+            }
+
+            // Hardware Key Bindings Support
+            if (event.type === 'keydown') {
+                if (event.code === 'KeyG') toggleGravity();
+                if (event.code === 'KeyP') actuatePause();
+            }
+
+            // Universal Jump Bind (Clicks, Touches, Spacebars)
+            if (event.type === 'touchstart' || event.type === 'mousedown' || (event.type === 'keydown' && event.code === 'Space')) {
+                if (isGameRunning && !isGameOver && !isPaused) {
+                    bird.flap();
+                }
+            }
+        }
+
+        // Action Listeners
+        window.addEventListener('keydown', handleInput, { passive: false });
+        // Use passive: false so we have permission to use preventDefault() 
+        window.addEventListener('touchstart', handleInput, { passive: false });
+        window.addEventListener('mousedown', handleInput);
+
+        gravityBtn.addEventListener('click', toggleGravity);
+        pauseBtn.addEventListener('click', actuatePause);
+        fullscreenBtn.addEventListener('click', handleHardwareFullscreen);
+        
+        // Mobile tap touch equivalents for Buttons so no delay happens on iOS Safari
+        gravityBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); toggleGravity(); });
+        pauseBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); actuatePause(); });
+        fullscreenBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); handleHardwareFullscreen(); });
+
+
+        // --- Game Lifecycle Routines ---
+
+        function initGame() {
+            // Attempt to unlock AudioContext natively safely through User Tap context
+            bgMusic.currentTime = 0;
+            bgMusic.play().catch(e => console.log("Audio not authorized by OS.", e));
+            
+            // Clean slate variables
+            bird.reset();
+            pipes.reset();
+            frames = 0;
+            score = 0;
+            isGameOver = false;
+            isPaused = false;
+            pauseBtn.innerText = '⏸️';
+
+            // UI Hide / Show Logic
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            hudMode.classList.remove('hidden');
+            hudScore.classList.remove('hidden');
+            topControls.classList.remove('hidden');
+            gravityBtn.classList.remove('hidden');
+            hudScore.innerText = score;
+
+            updateHUDColors();
+
+            isGameRunning = true;
+            gameLoop(); 
+        }
+
+        function triggerGameOver() {
+            bgMusic.pause();
+            
+            // Using a try-catch for sound in case mobile browsers delay load
+            try { gameOverSound.currentTime = 0; gameOverSound.play(); } catch(e){}
+
+            // Mobile Haptic vibration on Death (if hardware/browser supports it)
+            if(navigator.vibrate) {
+                navigator.vibrate(200); 
+            }
+
+            isGameOver = true;
+            isGameRunning = false;
+            cancelAnimationFrame(animationId); 
+
+            // Decommission UI
+            hudMode.classList.add('hidden');
+            hudScore.classList.add('hidden');
+            topControls.classList.add('hidden');
+            gravityBtn.classList.add('hidden');
+
+            finalScoreDisplay.innerText = score;
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function updateHUDColors() {
+            gravityBtn.innerText = isAntiGravity ? "↑" : "↓";
+            if (isAntiGravity) {
+                hudMode.innerText = "Mode: Anti-Gravity";
+                hudMode.style.color = "#4facfe";
+                gravityBtn.style.color = "#4facfe";
+                gravityBtn.style.borderColor = "rgba(79, 172, 254, 0.4)";
+                gravityBtn.style.backgroundColor = "rgba(79, 172, 254, 0.1)";
+            } else {
+                hudMode.innerText = "Mode: Normal Gravity";
+                hudMode.style.color = "#e94560";
+                gravityBtn.style.color = "#e94560";
+                gravityBtn.style.borderColor = "rgba(233, 69, 96, 0.4)";
+                gravityBtn.style.backgroundColor = "rgba(233, 69, 96, 0.1)";
+            }
+        }
+
+        // --- Render Lifecycle ---
+
+        function drawGameVisuals() {
+            // Clearing the Virtual Resolution size coordinates (0-400w, 0-600h)
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            pipes.draw();
+            bird.draw();
+        }
+
+        function gameLoop() {
+            // Stop executing logic entirely
+            if (!isGameRunning || isPaused) return;
+
+            // Compute Physics
+            pipes.update();
+            bird.update();
+            frames++;
+
+            // Draw to Grid
+            drawGameVisuals();
+
+            // Next cycle
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // Wire start logic
+        startBtn.addEventListener('click', initGame);
+        restartBtn.addEventListener('click', initGame);
+
+        // Preload layout and calculate first responsive canvas bounds
+        resizeGame(); 
+
+    </script>
 </body>
+
 </html>
